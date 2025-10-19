@@ -8,5 +8,27 @@
 <body>
   <h1>DreamPlay Auto-Register</h1>
   <p>Function endpoint: <code>/.netlify/functions/referrer-sign?buyer=0xYourWallet</code></p>
+<script>
+async function tryAutoRegister(account, contract){
+  try{
+    // Call your Netlify function to get the signed referral data
+    const res = await fetch('/.netlify/functions/referrer-sign?buyer=' + account);
+    if(!res.ok) return; // buyer not on allowlist or function misconfigured
+
+    // Read the data (referrer, deadline, signature)
+    const { referrer, deadline, signature } = await res.json();
+
+    // Send it to your smart contract (3-argument version)
+    const tx = await contract.registerReferrer(referrer, deadline, signature);
+    await tx.wait();
+
+    console.log('✅ Auto-registered', account, 'via', referrer);
+  }catch(e){
+    console.debug('Auto-register skipped:', e?.message || e);
+  }
+}
+</script>
+
 </body>
 </html>
+“Add auto-register script"
