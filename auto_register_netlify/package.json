@@ -1,0 +1,9 @@
+{
+  "name": "dreamplay-auto-register",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^5.7.2"
+  }
+}
