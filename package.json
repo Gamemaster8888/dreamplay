@@ -1,0 +1,13 @@
+{
+  "name": "dreamplay-auto-register",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "ethers": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
