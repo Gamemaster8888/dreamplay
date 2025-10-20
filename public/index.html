@@ -1,34 +1,74 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DreamPlay Auto-Register</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0c0f16;
+      color: #f0f0f0;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      color: #FFD166;
+      margin-top: 60px;
+      font-size: 2em;
+    }
+    p {
+      font-size: 1em;
+      color: #d3d3d3;
+    }
+    code {
+      background: #1a1d27;
+      color: #06D6A0;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    footer {
+      margin-top: 40px;
+      font-size: 0.9em;
+      color: #999;
+    }
+  </style>
 </head>
+
 <body>
   <h1>DreamPlay Auto-Register</h1>
   <p>Function endpoint: <code>/.netlify/functions/referrer-sign?buyer=0xYourWallet</code></p>
-<script>
-async function tryAutoRegister(account, contract){
-  try{
-    // Call your Netlify function to get the signed referral data
-    const res = await fetch('/.netlify/functions/referrer-sign?buyer=' + account);
-    if(!res.ok) return; // buyer not on allowlist or function misconfigured
 
-    // Read the data (referrer, deadline, signature)
-    const { referrer, deadline, signature } = await res.json();
+  <p>This page connects your wallet and automatically registers you in the DreamPlay smart contract.</p>
+  <p>To test manually, open the browser console and run:<br>
+  <code>tryAutoRegister(window.ethereum.selectedAddress, contractInstance)</code></p>
 
-    // Send it to your smart contract (3-argument version)
-    const tx = await contract.registerReferrer(referrer, deadline, signature);
-    await tx.wait();
+  <footer>DreamPlay © 2025 — Automated Onboarding Portal</footer>
 
-    console.log('✅ Auto-registered', account, 'via', referrer);
-  }catch(e){
-    console.debug('Auto-register skipped:', e?.message || e);
-  }
-}
-</script>
+  <script>
+  // ✅ Expose function globally so browser console can access it
+  window.tryAutoRegister = async function (account, contract) {
+    try {
+      // Call your Netlify Function to get signed referral data
+      const res = await fetch('/.netlify/functions/referrer-sign?buyer=' + account);
+      if (!res.ok) {
+        console.log("⚠️ Not on allowlist or Netlify function not configured");
+        return;
+      }
 
+      // Extract referral data
+      const { referrer, deadline, signature } = await res.json();
+
+      // Send data to the smart contract
+      const tx = await contract.registerReferrer(referrer, deadline, signature);
+      await tx.wait();
+
+      console.log('✅ Auto-registered', account, 'via', referrer);
+    } catch (e) {
+      console.debug('Auto-register skipped:', e?.message || e);
+    }
+  };
+  </script>
 </body>
 </html>
-“Add auto-register script"
