@@ -25,7 +25,7 @@
 <body>
   <div class="card">
     <h1>DreamPlay Auto-Register</h1>
-    <p class="muted">This page connects your wallet, checks allowlist, and registers you on-chain.</p>
+    <p class="muted">Connect your wallet, check allowlist, and register on-chain.</p>
 
     <div class="kv">
       <div>Contract:</div><div><code id="contractAddr">0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4</code></div>
@@ -52,15 +52,19 @@
     <p class="muted">Tip: Open your browser Console for more details (Right-click → Inspect → Console).</p>
   </div>
 
+  <!-- ✅ Load Ethers.js BEFORE using it -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
   <script>
+    // ----- Config -----
     const CONTRACT_ADDRESS = "0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4"; // your contract
     const ABI = [
       "function registerReferrer(address referrer, uint256 deadline, bytes calldata sig) external",
-      "function referrerOf(address) view returns (address)" // if available; harmless if not present
+      "function referrerOf(address) view returns (address)" // optional; harmless if absent
     ];
-    const POLYGON_MAINNET = "0x89"; // 137
+    const POLYGON_MAINNET = "0x89"; // chainId 137
 
+    // ----- Helpers -----
     const el = (id)=>document.getElementById(id);
     const log = (...args)=>{ console.log(...args); const s=args.map(a=>typeof a==='string'?a:JSON.stringify(a,null,2)).join(' '); el('log').textContent += s+"\n"; };
     const set = (id, html, cls)=>{ const e=el(id); e.innerHTML = html; if(cls){ e.className=''; e.classList.add(cls);} }
@@ -69,15 +73,14 @@
 
     async function ensureNetwork(){
       if(!window.ethereum) { set('networkStatus','No wallet found. Install MetaMask.', 'err'); return false; }
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' }).catch(()=>null);
       if(chainId !== POLYGON_MAINNET){
-        set('networkStatus', `Wrong network (${chainId}). Switching to Polygon…`, 'err');
+        set('networkStatus', `Wrong network (${chainId||'unknown'}). Switching to Polygon…`, 'err');
         try{
           await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: POLYGON_MAINNET }] });
           set('networkStatus', 'Polygon mainnet (137) ✅', 'ok');
           return true;
         }catch(e){
-          // Try add then switch
           try{
             await window.ethereum.request({ method:'wallet_addEthereumChain', params:[{
               chainId: POLYGON_MAINNET,
@@ -101,7 +104,7 @@
     }
 
     async function connectWallet(){
-      if(!window.ethereum){ alert('Install MetaMask'); return; }
+      if(!window.ethereum){ alert('Please install MetaMask'); return; }
       const ok = await ensureNetwork();
       if(!ok) return;
       provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -110,7 +113,7 @@
       account = await signer.getAddress();
       set('acct', account, 'ok');
       contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-      window.contractInstance = contract; // expose for console
+      window.contractInstance = contract; // expose for console usage if needed
       log('Connected:', account);
       return account;
     }
@@ -129,7 +132,7 @@
         }
         const data = await res.json();
         set('allowlistStatus', '✅ OK (payload received)', 'ok');
-        set('payload', `<code>referrer: ${data.referrer}<br/>deadline: ${data.deadline}<br/>signature: ${data.signature.slice(0,14)}…</code>`);
+        set('payload', `<code>referrer: ${data.referrer}<br/>deadline: ${data.deadline}<br/>signature: ${data.signature.slice(0,18)}…</code>`);
         log('Payload:', data);
         return data;
       }catch(e){
@@ -139,7 +142,7 @@
       }
     }
 
-    // Expose global for console/manual usage too
+    // ✅ Global function (also callable from console)
     window.tryAutoRegister = async function (acct, ctr) {
       try{
         const payload = await (async ()=> {
@@ -163,27 +166,28 @@
       }
     };
 
-    // Button wiring
-    el('btnConnect').onclick = async ()=>{
+    // ----- Buttons -----
+    document.getElementById('btnConnect').onclick = async ()=>{
       await connectWallet();
     };
-    el('btnAllow').onclick = async ()=>{
+    document.getElementById('btnAllow').onclick = async ()=>{
       if(!account) await connectWallet();
       await testAllowlist();
     };
-    el('btnRegister').onclick = async ()=>{
+    document.getElementById('btnRegister').onclick = async ()=>{
       if(!account) await connectWallet();
       if(!contract) contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
       const data = await testAllowlist();
       if(!data){ alert('Allowlist check failed. See logs.'); return; }
       await window.tryAutoRegister(account, contract);
     };
-    el('btnClear').onclick = ()=>{
+    document.getElementById('btnClear').onclick = ()=>{
       location.reload(true);
     };
 
-    // Initial status
+    // Initial network check on load
     (async ()=>{ await ensureNetwork(); })();
   </script>
 </body>
 </html>
+
