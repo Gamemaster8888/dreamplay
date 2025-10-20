@@ -1,116 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DreamPlay Auto-Register</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DreamPlay Auto-Register (Diagnostic)</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0c0f16;
-      color: #f0f0f0;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-    h1 {
-      color: #FFD166;
-      margin-top: 60px;
-      font-size: 2em;
-    }
-    p {
-      font-size: 1em;
-      color: #d3d3d3;
-    }
-    code {
-      background: #1a1d27;
-      color: #06D6A0;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-    button {
-      background: #06D6A0;
-      color: #0c0f16;
-      font-weight: bold;
-      border: none;
-      border-radius: 6px;
-      padding: 10px 20px;
-      cursor: pointer;
-      font-size: 1rem;
-      margin-top: 20px;
-      transition: all 0.3s ease;
-    }
-    button:hover {
-      background: #05b98b;
-    }
-    footer {
-      margin-top: 40px;
-      font-size: 0.9em;
-      color: #999;
-    }
+    :root{ --bg:#0c0f16; --card:#121625; --muted:#9aa3b2; --accent:#06D6A0; --warn:#FFD166; --err:#EF476F; --ok:#06D6A0; }
+    body{ font-family: system-ui, Arial, sans-serif; background:var(--bg); color:#e7ecf5; margin:0; padding:24px; }
+    h1{ margin: 10px 0 6px; color:#FFD166 }
+    .card{ max-width:860px; margin:0 auto; background:var(--card); border-radius:12px; padding:20px; box-shadow:0 6px 20px rgba(0,0,0,.25); }
+    p, li{ color:#cdd6e3 }
+    code{ background:#1a1d27; padding:2px 6px; border-radius:4px; color:#9FE7D3 }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; margin:14px 0 }
+    button{ background:var(--accent); color:#0c0f16; border:0; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer }
+    button.secondary{ background:#2a3146; color:#d9e2f0 }
+    button.warn{ background:var(--warn); color:#111 }
+    .kv{ display:grid; grid-template-columns: 160px 1fr; gap:8px 12px; margin:14px 0 }
+    .muted{ color:var(--muted) }
+    .ok{ color:var(--ok) }
+    .err{ color:var(--err) }
+    .log{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; background:#0f1320; border:1px solid #1c2237; padding:10px; border-radius:8px; max-height:280px; overflow:auto }
   </style>
 </head>
-
 <body>
-  <h1>DreamPlay Auto-Register</h1>
-  <p>Welcome to the DreamPlay onboarding portal.</p>
-  <p>Click the button below to connect your wallet and automatically register.</p>
+  <div class="card">
+    <h1>DreamPlay Auto-Register</h1>
+    <p class="muted">This page connects your wallet, checks allowlist, and registers you on-chain.</p>
 
-  <button id="connectWalletBtn">🌌 Connect Wallet & Register</button>
+    <div class="kv">
+      <div>Contract:</div><div><code id="contractAddr">0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4</code></div>
+      <div>Network:</div><div id="networkStatus" class="muted">Detecting…</div>
+      <div>Account:</div><div id="acct" class="muted">Not connected</div>
+      <div>Allowlist API:</div><div><code>/.netlify/functions/referrer-sign?buyer=0x…</code></div>
+    </div>
 
-  <footer>DreamPlay © 2025 — Automated Onboarding Portal</footer>
+    <div class="row">
+      <button id="btnConnect">🌌 Connect Wallet</button>
+      <button id="btnAllow" class="secondary">🔎 Test Allowlist (no tx)</button>
+      <button id="btnRegister">✅ Register Now</button>
+      <button id="btnClear" class="warn">♻️ Reset / Hard Refresh</button>
+    </div>
+
+    <div class="kv">
+      <div>Allowlist:</div><div id="allowlistStatus" class="muted">Not tested</div>
+      <div>Payload:</div><div id="payload" class="muted">—</div>
+      <div>Tx Result:</div><div id="tx" class="muted">—</div>
+    </div>
+
+    <h3>Logs</h3>
+    <div id="log" class="log"></div>
+    <p class="muted">Tip: Open your browser Console for more details (Right-click → Inspect → Console).</p>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
-
   <script>
-  // ✅ Make function globally accessible
-  window.tryAutoRegister = async function (account, contract) {
-    try {
-      const res = await fetch('/.netlify/functions/referrer-sign?buyer=' + account);
-      if (!res.ok) {
-        console.log("⚠️ Not on allowlist or Netlify function not configured");
-        return;
-      }
-
-      const { referrer, deadline, signature } = await res.json();
-
-      const tx = await contract.registerReferrer(referrer, deadline, signature);
-      await tx.wait();
-
-      console.log('✅ Auto-registered', account, 'via', referrer);
-      alert('✅ You have been auto-registered successfully!');
-    } catch (e) {
-      console.debug('Auto-register skipped:', e?.message || e);
-      alert('⚠️ Auto-register failed: ' + (e?.message || e));
-    }
-  };
-
-  // ✅ Wallet connect + auto registration
-  document.getElementById("connectWalletBtn").addEventListener("click", async () => {
-    if (!window.ethereum) {
-      alert("Please install MetaMask first!");
-      return;
-    }
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    const signer = provider.getSigner();
-    const account = await signer.getAddress();
-
-    console.log("🔗 Wallet connected:", account);
-
-    // Define your contract (replace with your real ABI and address)
-    const CONTRACT_ADDRESS = "0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4";
+    const CONTRACT_ADDRESS = "0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4"; // your contract
     const ABI = [
       "function registerReferrer(address referrer, uint256 deadline, bytes calldata sig) external",
+      "function referrerOf(address) view returns (address)" // if available; harmless if not present
     ];
+    const POLYGON_MAINNET = "0x89"; // 137
 
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    const el = (id)=>document.getElementById(id);
+    const log = (...args)=>{ console.log(...args); const s=args.map(a=>typeof a==='string'?a:JSON.stringify(a,null,2)).join(' '); el('log').textContent += s+"\n"; };
+    const set = (id, html, cls)=>{ const e=el(id); e.innerHTML = html; if(cls){ e.className=''; e.classList.add(cls);} }
 
-    // Run the auto-register process automatically
-    await window.tryAutoRegister(account, contract);
-  });
+    let provider, signer, account, contract;
+
+    async function ensureNetwork(){
+      if(!window.ethereum) { set('networkStatus','No wallet found. Install MetaMask.', 'err'); return false; }
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      if(chainId !== POLYGON_MAINNET){
+        set('networkStatus', `Wrong network (${chainId}). Switching to Polygon…`, 'err');
+        try{
+          await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: POLYGON_MAINNET }] });
+          set('networkStatus', 'Polygon mainnet (137) ✅', 'ok');
+          return true;
+        }catch(e){
+          // Try add then switch
+          try{
+            await window.ethereum.request({ method:'wallet_addEthereumChain', params:[{
+              chainId: POLYGON_MAINNET,
+              chainName: 'Polygon Mainnet',
+              nativeCurrency: { name:'MATIC', symbol:'MATIC', decimals:18 },
+              rpcUrls: ['https://polygon-rpc.com/'],
+              blockExplorerUrls: ['https://polygonscan.com/']
+            }]});
+            set('networkStatus', 'Polygon mainnet (137) ✅', 'ok');
+            return true;
+          }catch(e2){
+            log('Network switch failed:', e2.message || e2);
+            set('networkStatus','Please switch to Polygon mainnet (137) and retry.', 'err');
+            return false;
+          }
+        }
+      } else {
+        set('networkStatus','Polygon mainnet (137) ✅','ok');
+        return true;
+      }
+    }
+
+    async function connectWallet(){
+      if(!window.ethereum){ alert('Install MetaMask'); return; }
+      const ok = await ensureNetwork();
+      if(!ok) return;
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      account = await signer.getAddress();
+      set('acct', account, 'ok');
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      window.contractInstance = contract; // expose for console
+      log('Connected:', account);
+      return account;
+    }
+
+    async function testAllowlist(){
+      if(!account) await connectWallet();
+      try{
+        const url = '/.netlify/functions/referrer-sign?buyer=' + account;
+        log('Fetching allowlist payload:', url);
+        const res = await fetch(url);
+        if(!res.ok){
+          const txt = await res.text();
+          set('allowlistStatus', `❌ ${res.status} ${res.statusText}: ${txt}`, 'err');
+          log('Allowlist error:', res.status, res.statusText, txt);
+          return null;
+        }
+        const data = await res.json();
+        set('allowlistStatus', '✅ OK (payload received)', 'ok');
+        set('payload', `<code>referrer: ${data.referrer}<br/>deadline: ${data.deadline}<br/>signature: ${data.signature.slice(0,14)}…</code>`);
+        log('Payload:', data);
+        return data;
+      }catch(e){
+        set('allowlistStatus', `❌ ${e.message || e}`, 'err');
+        log('Allowlist fetch failed:', e);
+        return null;
+      }
+    }
+
+    // Expose global for console/manual usage too
+    window.tryAutoRegister = async function (acct, ctr) {
+      try{
+        const payload = await (async ()=> {
+          const url='/.netlify/functions/referrer-sign?buyer=' + acct;
+          const r = await fetch(url);
+          if(!r.ok) throw new Error(`Allowlist ${r.status} ${r.statusText}`);
+          return r.json();
+        })();
+
+        log('Registering with payload:', payload);
+        const tx = await ctr.registerReferrer(payload.referrer, payload.deadline, payload.signature);
+        set('tx','⏳ Submitted… waiting confirmation','muted');
+        const receipt = await tx.wait();
+        set('tx', `✅ Confirmed in block ${receipt.blockNumber}`, 'ok');
+        log('Tx mined:', receipt);
+        alert('✅ You have been auto-registered!');
+      }catch(e){
+        set('tx', `❌ ${e.reason || e.message || e}`, 'err');
+        log('Register failed:', e);
+        alert('⚠️ Register failed: ' + (e.reason || e.message || e));
+      }
+    };
+
+    // Button wiring
+    el('btnConnect').onclick = async ()=>{
+      await connectWallet();
+    };
+    el('btnAllow').onclick = async ()=>{
+      if(!account) await connectWallet();
+      await testAllowlist();
+    };
+    el('btnRegister').onclick = async ()=>{
+      if(!account) await connectWallet();
+      if(!contract) contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      const data = await testAllowlist();
+      if(!data){ alert('Allowlist check failed. See logs.'); return; }
+      await window.tryAutoRegister(account, contract);
+    };
+    el('btnClear').onclick = ()=>{
+      location.reload(true);
+    };
+
+    // Initial status
+    (async ()=>{ await ensureNetwork(); })();
   </script>
 </body>
 </html>
-
