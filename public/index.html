@@ -28,6 +28,21 @@
       padding: 4px 8px;
       border-radius: 4px;
     }
+    button {
+      background: #06D6A0;
+      color: #0c0f16;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 20px;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: #05b98b;
+    }
     footer {
       margin-top: 40px;
       font-size: 0.9em;
@@ -38,37 +53,64 @@
 
 <body>
   <h1>DreamPlay Auto-Register</h1>
-  <p>Function endpoint: <code>/.netlify/functions/referrer-sign?buyer=0xYourWallet</code></p>
+  <p>Welcome to the DreamPlay onboarding portal.</p>
+  <p>Click the button below to connect your wallet and automatically register.</p>
 
-  <p>This page connects your wallet and automatically registers you in the DreamPlay smart contract.</p>
-  <p>To test manually, open the browser console and run:<br>
-  <code>tryAutoRegister(window.ethereum.selectedAddress, contractInstance)</code></p>
+  <button id="connectWalletBtn">🌌 Connect Wallet & Register</button>
 
   <footer>DreamPlay © 2025 — Automated Onboarding Portal</footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
   <script>
-  // ✅ Expose function globally so browser console can access it
+  // ✅ Make function globally accessible
   window.tryAutoRegister = async function (account, contract) {
     try {
-      // Call your Netlify Function to get signed referral data
       const res = await fetch('/.netlify/functions/referrer-sign?buyer=' + account);
       if (!res.ok) {
         console.log("⚠️ Not on allowlist or Netlify function not configured");
         return;
       }
 
-      // Extract referral data
       const { referrer, deadline, signature } = await res.json();
 
-      // Send data to the smart contract
       const tx = await contract.registerReferrer(referrer, deadline, signature);
       await tx.wait();
 
       console.log('✅ Auto-registered', account, 'via', referrer);
+      alert('✅ You have been auto-registered successfully!');
     } catch (e) {
       console.debug('Auto-register skipped:', e?.message || e);
+      alert('⚠️ Auto-register failed: ' + (e?.message || e));
     }
   };
+
+  // ✅ Wallet connect + auto registration
+  document.getElementById("connectWalletBtn").addEventListener("click", async () => {
+    if (!window.ethereum) {
+      alert("Please install MetaMask first!");
+      return;
+    }
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const account = await signer.getAddress();
+
+    console.log("🔗 Wallet connected:", account);
+
+    // Define your contract (replace with your real ABI and address)
+    const CONTRACT_ADDRESS = "0xF8d3395c2ff16A1881147a3Ae0fBD7C33De13Ad4";
+    const ABI = [
+      "function registerReferrer(address referrer, uint256 deadline, bytes calldata sig) external",
+    ];
+
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+    // Run the auto-register process automatically
+    await window.tryAutoRegister(account, contract);
+  });
   </script>
 </body>
 </html>
+
